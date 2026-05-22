@@ -1,246 +1,472 @@
-# 📰 HN Reader — MERN Stack Full Stack Application
+# mern_task
 
-A full-stack application that scrapes the **top 10 stories from Hacker News**, stores them in MongoDB, and serves them via a REST API with JWT authentication, bookmarking, and a responsive React frontend.
+# 📰 HN Reader — Full Stack MERN Application
+
+> A production-ready web application that scrapes real-time stories from **Hacker News**, stores them in MongoDB, and delivers a seamless reading experience with JWT authentication and personal bookmarking — built entirely from scratch with the MERN stack.
 
 ---
 
-## 🗂️ Project Structure
+## 🔗 Live Demo & Repository
+
+| | Link |
+|---|---|
+| 🌐 **Live App** | https://hn-scraper.vercel.app |
+| ⚙️ **Backend API** | https://hn-scraper-backend.onrender.com/api/health |
+| 💻 **GitHub Repo** | https://github.com/your-username/hn-fullstack |
+
+> **Try it yourself:** Register an account → Browse live HN stories → Bookmark your favourites → Log out and back in — your bookmarks are still there.
+
+---
+
+## 👨‍💻 About This Project
+
+This project was built as a **Full Stack Developer technical assignment** to demonstrate real-world proficiency across the entire web development stack — from database design to REST API architecture to a polished, responsive frontend.
+
+### What It Does
+1. **Scrapes** the top 10 trending stories from Hacker News in real time
+2. **Persists** those stories to a MongoDB database (with deduplication)
+3. **Authenticates** users with secure JWT-based login and registration
+4. **Lets users bookmark** stories to a personal reading list, stored per-account in the database
+5. **Protects routes** on both the backend (middleware) and frontend (ProtectedRoute component)
+
+### Why I Built It This Way
+Every technical decision in this project was made deliberately — not just to make it work, but to make it maintainable, scalable, and secure. The architecture mirrors how real production MERN applications are structured at companies today.
+
+---
+
+## ⚡ Tech Stack
+
+| Layer | Technology | Why This Choice |
+|---|---|---|
+| **Frontend** | React 18 + Vite | Vite's native ESM gives 10x faster HMR than Create React App |
+| **Routing** | React Router v6 | Industry standard; declarative nested routing |
+| **UI Framework** | Bootstrap 5 + Bootstrap Icons | Rapid responsive UI with zero custom CSS bloat |
+| **HTTP Client** | Axios | Interceptors allow global JWT injection in one place |
+| **State Management** | React Context + useReducer | Right-sized for auth state — no Redux overhead |
+| **Backend** | Node.js + Express.js | Non-blocking I/O perfect for scraping + API workloads |
+| **Database** | MongoDB + Mongoose | Document model fits HN story data naturally |
+| **Authentication** | JWT + bcryptjs | Stateless auth; bcrypt's cost factor resists brute-force |
+| **Web Scraping** | Axios + Cheerio | Server-side jQuery-like DOM parsing; no browser needed |
+| **Deployment** | Vercel + Render + MongoDB Atlas | Industry-standard free-tier production stack |
+
+---
+
+## 🏗️ Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    CLIENT (React + Vite)                 │
+│                                                         │
+│  ┌──────────┐  ┌──────────┐  ┌────────────────────┐   │
+│  │  Login   │  │ Register │  │  Stories Dashboard  │   │
+│  └──────────┘  └──────────┘  └────────────────────┘   │
+│                                ┌────────────────────┐   │
+│       AuthContext (global)     │  Bookmarks (🔒)    │   │
+│       Axios Interceptor        └────────────────────┘   │
+└────────────────────┬────────────────────────────────────┘
+                     │ HTTPS (JWT in Authorization header)
+┌────────────────────▼────────────────────────────────────┐
+│                  EXPRESS.JS REST API                     │
+│                                                         │
+│  ┌─────────────────┐      ┌──────────────────────────┐  │
+│  │   Auth Routes   │      │     Story Routes          │  │
+│  │  POST /register │      │  POST /scrape             │  │
+│  │  POST /login    │      │  GET  /stories            │  │
+│  │  GET  /me       │      │  GET  /stories/:id        │  │
+│  └─────────────────┘      │  POST /stories/:id/bookmark│  │
+│                           │  GET  /stories/bookmarks  │  │
+│  ┌─────────────────┐      └──────────────────────────┘  │
+│  │  JWT Middleware │ ◄── protects private routes         │
+│  └─────────────────┘                                    │
+└────────────────────┬────────────────────────────────────┘
+                     │ Mongoose ODM
+┌────────────────────▼────────────────────────────────────┐
+│                  MONGODB ATLAS                           │
+│                                                         │
+│  ┌────────────────┐      ┌───────────────────────────┐  │
+│  │  Users         │      │  Stories                  │  │
+│  │  _id           │      │  _id                      │  │
+│  │  username      │      │  title                    │  │
+│  │  email         │      │  url                      │  │
+│  │  password(hash)│      │  points                   │  │
+│  │  bookmarks[]──────────►  author                   │  │
+│  │  timestamps    │      │  postedTime               │  │
+│  └────────────────┘      │  hnId (unique)            │  │
+│                          │  rank                     │  │
+│                          │  timestamps               │  │
+│                          └───────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+                     ▲
+           ┌─────────┴──────────┐
+           │  HackerNews.com    │
+           │  (Cheerio Scraper) │
+           └────────────────────┘
+```
+
+---
+
+## 📁 Folder Structure
 
 ```
 hn-fullstack/
-├── backend/
-│   ├── config/
-│   │   └── db.js               # MongoDB connection
-│   ├── controllers/
-│   │   ├── authController.js   # Register, Login, Me
-│   │   └── storyController.js  # Scrape, CRUD, Bookmarks
-│   ├── middleware/
-│   │   └── authMiddleware.js   # JWT protect middleware
-│   ├── models/
-│   │   ├── User.js             # User schema
-│   │   └── Story.js            # Story schema
-│   ├── routes/
-│   │   ├── authRoutes.js
-│   │   └── storyRoutes.js
-│   ├── utils/
-│   │   ├── generateToken.js    # JWT generator
-│   │   └── scraper.js          # Cheerio-based HN scraper
-│   ├── .env.example
-│   ├── package.json
-│   └── server.js               # Express entry point
 │
-└── frontend/
+├── backend/                          # Node.js + Express API
+│   ├── config/
+│   │   └── db.js                     # MongoDB connection with error handling
+│   │
+│   ├── controllers/                  # Business logic layer (MVC)
+│   │   ├── authController.js         # Register, Login, GetMe
+│   │   └── storyController.js        # Scrape, GetAll, GetById, Bookmark
+│   │
+│   ├── middleware/
+│   │   └── authMiddleware.js         # JWT verification — protects private routes
+│   │
+│   ├── models/                       # Mongoose schemas (MVC Model layer)
+│   │   ├── User.js                   # username, email, hashed password, bookmarks[]
+│   │   └── Story.js                  # title, url, points, author, time, hnId, rank
+│   │
+│   ├── routes/                       # Route definitions (MVC Controller wiring)
+│   │   ├── authRoutes.js             # /api/auth/*
+│   │   └── storyRoutes.js            # /api/stories/*
+│   │
+│   ├── utils/
+│   │   ├── generateToken.js          # Signs JWT with 7-day expiry
+│   │   └── scraper.js                # Axios + Cheerio HN scraper
+│   │
+│   ├── .env.example                  # Environment variable template
+│   ├── package.json
+│   └── server.js                     # Express app entry point
+│
+└── frontend/                         # React 18 + Vite SPA
     ├── src/
-    │   ├── components/
-    │   │   ├── Navbar.jsx
-    │   │   ├── ProtectedRoute.jsx
-    │   │   ├── Spinner.jsx
-    │   │   └── StoryCard.jsx
+    │   ├── components/               # Reusable UI components
+    │   │   ├── Navbar.jsx            # Responsive navbar, auth-aware links
+    │   │   ├── ProtectedRoute.jsx    # Redirects unauthenticated users
+    │   │   ├── StoryCard.jsx         # Story display card with bookmark toggle
+    │   │   └── Spinner.jsx           # Loading state indicator
+    │   │
     │   ├── context/
-    │   │   └── AuthContext.jsx  # Global auth state
+    │   │   └── AuthContext.jsx       # Global auth state (useReducer + localStorage)
+    │   │
     │   ├── pages/
-    │   │   ├── Login.jsx
-    │   │   ├── Register.jsx
-    │   │   ├── Stories.jsx
-    │   │   └── Bookmarks.jsx
+    │   │   ├── Register.jsx          # Registration form with validation
+    │   │   ├── Login.jsx             # Login form
+    │   │   ├── Stories.jsx           # Main dashboard — stories list
+    │   │   └── Bookmarks.jsx         # Protected bookmarks page
+    │   │
     │   ├── utils/
-    │   │   └── api.js           # Axios instance + interceptors
-    │   ├── App.jsx
-    │   ├── main.jsx
-    │   └── index.css
+    │   │   └── api.js                # Axios instance with JWT interceptor
+    │   │
+    │   ├── App.jsx                   # Root component with router setup
+    │   ├── main.jsx                  # React DOM entry point
+    │   └── index.css                 # Custom styles on top of Bootstrap
+    │
     ├── index.html
-    ├── vite.config.js
+    ├── vite.config.js                # Vite config with dev proxy
     ├── .env.example
     └── package.json
 ```
 
 ---
 
-## ⚙️ Tech Stack
+## 🔑 Key Features Explained
 
-| Layer     | Technology                          |
-|-----------|-------------------------------------|
-| Frontend  | React 18 + Vite, React Router v6    |
-| UI        | Bootstrap 5 + Bootstrap Icons       |
-| HTTP      | Axios (with JWT interceptor)        |
-| Backend   | Node.js + Express.js                |
-| Database  | MongoDB + Mongoose                  |
-| Auth      | JWT + bcryptjs                      |
-| Scraping  | Axios + Cheerio                     |
+### 1. Real-Time Web Scraping
+The scraper (`utils/scraper.js`) uses **Axios** to fetch the raw HTML of `news.ycombinator.com` and **Cheerio** to parse it with CSS selectors — the same way jQuery works in the browser, but running on the server. It extracts the title, external URL, points, author, post time, and HN internal ID for each of the top 10 stories.
+
+**Deduplication:** Stories are saved with MongoDB's `findOneAndUpdate` + `upsert: true` keyed on `hnId` (HN's own story ID). This means you can scrape multiple times without creating duplicates.
+
+### 2. JWT Authentication
+- **Registration:** Password is hashed with `bcrypt` (10 salt rounds) before storage. The raw password never touches the database.
+- **Login:** bcrypt compares the submitted password against the stored hash. On success, a JWT is signed with a secret key and returned.
+- **Protected Requests:** The Axios instance has a **request interceptor** that reads the JWT from `localStorage` and automatically attaches it as `Authorization: Bearer <token>` on every outgoing request.
+- **Backend Middleware:** The `protect` middleware verifies the JWT signature, checks expiry, and attaches `req.user` to the request object for all protected routes.
+- **Auto-Logout:** The Axios **response interceptor** catches any `401 Unauthorized` response and automatically clears the token from storage and redirects to `/login`.
+
+### 3. Bookmark System
+- Users can bookmark any story with a single click on the bookmark icon.
+- The toggle checks if the story ID already exists in the user's `bookmarks[]` array — if yes, it removes it; if no, it adds it. This prevents duplicate bookmarks at the database level.
+- Bookmark state is fetched from the server on page load so it's always accurate, not just client-side memory.
+- The Bookmarks page is a **protected route** — unauthenticated users are redirected to `/login`.
+
+### 4. Global Auth State
+`AuthContext.jsx` uses React's `useReducer` (not `useState`) to manage auth state transitions cleanly. The context persists to `localStorage` so the user stays logged in across page refreshes. Any component in the tree can call `useAuth()` to read the current user or trigger login/logout.
+
+### 5. Protected Routes (Frontend)
+The `ProtectedRoute` component wraps sensitive pages. It reads `isAuthenticated` from `AuthContext` and renders either the page or a `<Navigate to="/login" />` redirect — clean, reusable, and zero duplication.
 
 ---
 
-## 🚀 Local Development Setup
+## 🌐 API Reference
+
+### Authentication Endpoints
+
+| Method | Endpoint | Access | Request Body | Response |
+|---|---|---|---|---|
+| `POST` | `/api/auth/register` | Public | `{ username, email, password }` | `{ _id, username, email, token }` |
+| `POST` | `/api/auth/login` | Public | `{ email, password }` | `{ _id, username, email, token }` |
+| `GET` | `/api/auth/me` | 🔒 Private | — | `{ _id, username, email }` |
+
+### Story Endpoints
+
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/api/stories/scrape` | Public | Scrapes HN and saves/updates top 10 stories |
+| `GET` | `/api/stories` | Public | Returns all stories sorted by rank |
+| `GET` | `/api/stories/:id` | Public | Returns a single story by MongoDB ID |
+| `POST` | `/api/stories/:id/bookmark` | 🔒 Private | Toggles bookmark (add or remove) |
+| `GET` | `/api/stories/bookmarks` | 🔒 Private | Returns all bookmarked stories for the user |
+
+> 🔒 Private endpoints require `Authorization: Bearer <token>` header.
+
+---
+
+## 🗄️ Database Schema
+
+### User Model
+```javascript
+{
+  username:  String,   // unique, min 3 chars
+  email:     String,   // unique, validated format
+  password:  String,   // bcrypt hash — NEVER plain text
+  bookmarks: [ObjectId], // references to Story documents
+  createdAt: Date,     // auto via timestamps
+  updatedAt: Date
+}
+```
+
+### Story Model
+```javascript
+{
+  title:       String,  // HN story headline
+  url:         String,  // external article URL
+  points:      Number,  // upvote count
+  author:      String,  // HN username of poster
+  postedTime:  String,  // "3 hours ago" format
+  hnId:        String,  // unique — HN's own story ID
+  commentsUrl: String,  // link to HN discussion thread
+  rank:        Number,  // 1–10 position on front page
+  createdAt:   Date,
+  updatedAt:   Date
+}
+```
+
+---
+
+## 🔒 Security Implementation
+
+| Concern | Implementation |
+|---|---|
+| Password storage | bcrypt hash with 10 salt rounds — never reversible |
+| JWT payload | Contains only `user._id` — no sensitive data |
+| JWT expiry | 7 days — tokens auto-expire |
+| Protected API routes | `protect` middleware on all private endpoints |
+| Protected frontend routes | `ProtectedRoute` component wraps sensitive pages |
+| Environment secrets | All secrets in `.env` files — never committed to Git |
+| Duplicate bookmarks | Server-side existence check before insert |
+| CORS | Restricted to known frontend origin via `CLIENT_URL` env var |
+
+---
+
+## 🚀 Local Setup Guide
 
 ### Prerequisites
 - Node.js 18+
-- MongoDB Atlas account (or local MongoDB)
+- A MongoDB Atlas account (free) or local MongoDB
 - npm
 
-### 1. Clone the repo
+### Step 1 — Clone the Repository
 ```bash
 git clone https://github.com/your-username/hn-fullstack.git
 cd hn-fullstack
 ```
 
-### 2. Backend Setup
+### Step 2 — Backend Setup
 ```bash
 cd backend
 npm install
+```
+Create your `.env` file:
+```bash
+# Windows PowerShell
+copy .env.example .env
+
+# Mac / Linux
 cp .env.example .env
-# Edit .env with your values
+```
+Fill in `backend/.env`:
+```env
+PORT=5000
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/hn-scraper
+JWT_SECRET=your_long_random_secret_key
+NODE_ENV=development
+```
+Start the backend:
+```bash
 npm run dev
 ```
+✅ You should see: `🚀 Server running on port 5000` and `✅ MongoDB Connected`
 
-### 3. Frontend Setup
+### Step 3 — Frontend Setup (new terminal)
 ```bash
 cd frontend
 npm install
+```
+Create your `.env` file:
+```bash
+# Windows PowerShell
+copy .env.example .env
+
+# Mac / Linux
 cp .env.example .env
-# Edit VITE_API_URL if needed
+```
+Fill in `frontend/.env`:
+```env
+VITE_API_URL=http://localhost:5000/api
+```
+Start the frontend:
+```bash
 npm run dev
 ```
+✅ App running at: `http://localhost:5173`
 
-### 4. Visit the App
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:5000/api/health
-
----
-
-## 🌐 API Endpoints
-
-### Auth
-| Method | Endpoint              | Access  | Description          |
-|--------|-----------------------|---------|----------------------|
-| POST   | /api/auth/register    | Public  | Register new user    |
-| POST   | /api/auth/login       | Public  | Login user           |
-| GET    | /api/auth/me          | Private | Get current user     |
-
-### Stories
-| Method | Endpoint                    | Access  | Description               |
-|--------|-----------------------------|---------|---------------------------|
-| POST   | /api/stories/scrape         | Public  | Scrape & save HN stories  |
-| GET    | /api/stories                | Public  | Get all stories            |
-| GET    | /api/stories/:id            | Public  | Get story by ID           |
-| POST   | /api/stories/:id/bookmark   | Private | Toggle bookmark           |
-| GET    | /api/stories/bookmarks      | Private | Get user's bookmarks      |
+### Step 4 — First Run
+1. Open `http://localhost:5173`
+2. Click **Refresh Stories** to trigger the first HN scrape
+3. Register an account
+4. Start bookmarking stories
 
 ---
 
 ## ☁️ Deployment
 
+| Service | Platform | Cost |
+|---|---|---|
+| Frontend | Vercel | Free |
+| Backend API | Render | Free |
+| Database | MongoDB Atlas | Free (512 MB) |
+
 ### MongoDB Atlas
-1. Create a free cluster at https://cloud.mongodb.com
-2. Add a database user with read/write access
-3. Whitelist IP `0.0.0.0/0` for Render deployment
-4. Copy the connection string to your backend `MONGO_URI`
+1. Create free cluster at https://cloud.mongodb.com
+2. Create database user with read/write access
+3. Add `0.0.0.0/0` to Network Access (allows Render)
+4. Copy connection string → replace `<password>` → add `/hn-scraper` before `?`
 
-### Backend → Render
-1. Push code to GitHub
-2. Go to https://render.com → New Web Service
-3. Connect your GitHub repo, select `backend/` as root
-4. Set environment variables:
-   - `MONGO_URI` = your Atlas connection string
-   - `JWT_SECRET` = a long random string
-   - `CLIENT_URL` = your Vercel frontend URL
-   - `NODE_ENV` = production
-5. Build command: `npm install`
-6. Start command: `npm start`
-
-### Frontend → Vercel
-1. Go to https://vercel.com → New Project
-2. Import your GitHub repo, set `frontend/` as root
-3. Set environment variable:
-   - `VITE_API_URL` = your Render backend URL + `/api`
-4. Deploy!
-
----
-
-## 🔒 Security Notes
-- Passwords hashed with bcrypt (10 salt rounds)
-- JWT expires in 7 days
-- Protected routes on both frontend and backend
-- No sensitive data in JWT payload (only user ID)
-- Environment variables for all secrets
-
----
-
-## 📝 Git Commit Message Suggestions
+### Backend on Render
+1. New Web Service → connect GitHub repo
+2. Root Directory: `backend`
+3. Build: `npm install` | Start: `npm start`
+4. Environment variables:
 
 ```
-feat: initial project setup with MERN stack structure
-feat: add MongoDB schemas for User and Story
-feat: implement JWT authentication (register + login)
-feat: add HackerNews scraper with cheerio
-feat: implement story CRUD endpoints
-feat: add bookmark toggle with duplicate prevention
-feat: build React frontend with Vite and Bootstrap
-feat: add AuthContext with useReducer for state management
-feat: implement ProtectedRoute component
-feat: add Axios interceptor for JWT injection
-feat: build StoryCard with bookmark functionality
-feat: add responsive Navbar with auth-aware links
-fix: ensure bookmarks route is defined before :id param
-chore: add .env.example files for both services
-docs: add README with setup and deployment instructions
+MONGO_URI     = mongodb+srv://...
+JWT_SECRET    = your_secret
+NODE_ENV      = production
+CLIENT_URL    = https://your-app.vercel.app
+```
+
+### Frontend on Vercel
+1. New Project → import GitHub repo
+2. Root Directory: `frontend`
+3. Environment variable:
+```
+VITE_API_URL  = https://your-backend.onrender.com/api
 ```
 
 ---
 
-## 🎥 Loom Video Walkthrough Script
+## 🧠 Technical Decisions & Trade-offs
 
-**[0:00 - 0:30] Introduction**
-> "Hi, I'm [Name]. I built a full-stack MERN application that scrapes the top 10 stories from Hacker News and provides a rich reading experience with bookmarking. Let me walk you through the architecture and code."
+**Why Cheerio over Puppeteer for scraping?**
+Puppeteer spins up a full headless Chromium browser — heavy on memory (400MB+), slow to start, and overkill for HN which renders HTML server-side. Cheerio parses static HTML in milliseconds with zero browser overhead.
 
-**[0:30 - 1:30] Project Structure**
-> "The project is split into backend and frontend. The backend follows MVC — Models define the data shape, Controllers handle business logic, and Routes wire up the endpoints. On the frontend, I've used React with Context API for global auth state."
+**Why Context API + useReducer over Redux?**
+This app has one piece of shared state: auth (user + token). Redux adds a store, actions, reducers, and middleware for something a 50-line Context file handles cleanly. The rule: reach for Redux when you have many slices of complex, frequently-updating shared state.
 
-**[1:30 - 3:00] Backend Deep Dive**
-> "The scraper uses Axios to fetch the HN HTML and Cheerio to parse it like jQuery. I extract the title, URL, points, author, and time from the DOM. Stories are saved with upsert to prevent duplicates. JWT authentication uses bcrypt for passwords and signs tokens with a secret key."
+**Why JWT over sessions?**
+JWTs are stateless — the server doesn't need to store session data. This makes the API horizontally scalable (any server instance can verify any token). Sessions require a shared session store (like Redis) when scaling.
 
-**[3:00 - 4:30] Frontend Architecture**
-> "The React app uses React Router v6 for routing, and I've implemented a ProtectedRoute wrapper that redirects unauthenticated users. The Axios instance has an interceptor that automatically attaches the JWT from localStorage to every request."
+**Why `findOneAndUpdate` with upsert for scraping?**
+Using `create()` would throw a duplicate key error on the second scrape. `upsert` atomically updates existing stories (in case points changed) or inserts new ones — a single DB operation that handles both cases safely.
 
-**[4:30 - 5:30] Live Demo**
-> "Let me register an account, browse stories, refresh from HN, and bookmark a few. Notice the bookmark state persists because it's stored in MongoDB against the user's account, not just frontend state."
-
-**[5:30 - 6:00] Deployment**
-> "The backend is deployed on Render, the frontend on Vercel, and the database on MongoDB Atlas — all free tiers, fully production-ready."
+**Why declare `/bookmarks` route before `/:id`?**
+Express matches routes in order. If `/:id` came first, the string `"bookmarks"` would be passed to `mongoose.findById()` as an ID, causing a CastError. Route ordering is a common Express gotcha.
 
 ---
 
-## ❓ Common Interview Questions
+## 🧪 Testing the API Manually
 
-### General MERN
-1. **Why did you use Vite instead of Create React App?**
-   Vite uses native ES modules for blazing-fast HMR and cold starts. CRA bundles everything with Webpack, which is slower in development.
+You can test all endpoints with **Postman** or **Thunder Client** (VS Code extension):
 
-2. **What is the MVC pattern and how does your backend follow it?**
-   Models define data schemas (User, Story), Views are the API JSON responses, Controllers contain business logic (authController, storyController), and Routes map URLs to controllers.
+```
+# Health check
+GET http://localhost:5000/api/health
 
-3. **How does JWT authentication work end-to-end in your app?**
-   On login, the server signs a token with a secret. The frontend stores it in localStorage and sends it as `Authorization: Bearer <token>` on every request. The `protect` middleware verifies the signature and attaches the user to `req.user`.
+# Register
+POST http://localhost:5000/api/auth/register
+Body: { "username": "testuser", "email": "test@test.com", "password": "123456" }
 
-### Security
-4. **Why use bcrypt? What are salt rounds?**
-   bcrypt is a one-way hashing algorithm designed to be slow (computationally expensive). Salt rounds (10) control the cost factor — higher = slower = harder to brute-force.
+# Login
+POST http://localhost:5000/api/auth/login
+Body: { "email": "test@test.com", "password": "123456" }
 
-5. **Is localStorage safe for storing JWTs? What's the alternative?**
-   localStorage is vulnerable to XSS. An alternative is httpOnly cookies (inaccessible to JS). For this project, localStorage is acceptable; in production, cookies + CSRF tokens are preferred.
+# Scrape stories (copy token from login response)
+POST http://localhost:5000/api/stories/scrape
 
-6. **How do you prevent duplicate bookmarks?**
-   Before adding, I check if the story ID already exists in the user's bookmarks array. If it does, I remove it (toggle). If not, I add it — handled atomically in the controller.
+# Get all stories
+GET http://localhost:5000/api/stories
 
-### Scraping
-7. **How does Cheerio work?**
-   Cheerio parses HTML into a jQuery-like DOM you can traverse with CSS selectors. It runs server-side — no browser needed, unlike Puppeteer.
+# Bookmark a story (use a story _id from above)
+POST http://localhost:5000/api/stories/<story_id>/bookmark
+Header: Authorization: Bearer <your_token>
 
-8. **What happens if HackerNews changes its HTML structure?**
-   The scraper would break. In production you'd add monitoring/alerting (e.g. if `stories.length === 0`, send a Slack alert), and use the official HN Firebase API as a fallback.
+# Get my bookmarks
+GET http://localhost:5000/api/stories/bookmarks
+Header: Authorization: Bearer <your_token>
+```
 
-### React
-9. **Why Context API over Redux for this project?**
-   Auth state is simple — just user and token. Context + useReducer handles this without Redux's boilerplate. For complex shared state across many components, Redux (or Zustand) would be better.
+---
 
-10. **How do Axios interceptors work?**
-    Interceptors are middleware for Axios. The request interceptor runs before each request — I use it to attach the JWT. The response interceptor runs on each response — I use it to catch 401s and auto-logout.
+## 📱 Screenshots
+
+| Page | Description |
+|---|---|
+| **Stories Dashboard** | Top 10 HN stories with points, author, time, and bookmark button |
+| **Register Page** | Clean form with validation and instant feedback |
+| **Login Page** | Email + password login with error handling |
+| **Bookmarks Page** | Personal reading list — protected, persisted in MongoDB |
+
+---
+
+## 🔮 Future Improvements
+
+If I were to extend this project further:
+
+- **HN Firebase API fallback** — use the official `https://hacker-news.firebaseio.com` API as a fallback if scraping breaks due to HN HTML changes
+- **Pagination** — load more stories beyond the top 10, with infinite scroll
+- **Search & Filter** — search stories by title or filter by minimum points
+- **Scheduled scraping** — use a cron job (node-cron) to auto-refresh stories every hour
+- **httpOnly Cookies** — move JWT from localStorage to httpOnly cookies to eliminate XSS risk
+- **Rate limiting** — add express-rate-limit to prevent API abuse
+- **Unit tests** — Jest + Supertest for API endpoints; React Testing Library for components
+- **Categories/Tags** — let users tag bookmarks for organisation
+- **Dark mode** — toggle between Bootstrap light and dark themes
+
+---
+
+## 👤 Author
+
+**Prince Gupta**
+- GitHub: https://github.com/Prince260808
+- LinkedIn: https://www.linkedin.com/in/prince-gupta-0b297538b/
+- Email: princegupta.mern@gmail.com
+
+---
+
+## 📄 License
+
+MIT License — feel free to use this project as a reference or starting point.
+
+---
+
+*Built with ❤️ using the MERN stack — MongoDB, Express.js, React.js, Node.js*
